@@ -1,17 +1,11 @@
 #!/usr/bin/env bash
 
-# AntiZapret VPN for Debian based OS installation script
-# 
-# See https://bitbucket.org/anticensority/antizapret-vpn-container/ for the installation steps.
-# 
-# wget -qO- http://192.168.88.200:8000/install.sh | sudo bash
-# wget -qO- http://192.168.88.200:8000/install.sh | sudo IMAGE=test.tar.xz NAME=antizapret-test bash
-# wget -qO- http://192.168.88.200:8000/install.sh | sudo COMMAND=uninstall bash
+# P2P Routing Container for Debian based OS installation script
 
 set -e
 
-NAME=${NAME:-'antizapret-vpn'}
-IMAGE=${IMAGE:-'https://antizapret.prostovpn.org/container-images/az-vpn/rootfs.tar.xz'}
+NAME=${NAME:-'p2p'}
+IMAGE=${IMAGE:-'https://kyzima-spb.github.io/p2p-routing-container/images/default/rootfs.tar.xz'}
 
 
 function next_filename()
@@ -73,7 +67,7 @@ function restoreCredentials() {
 function installRequirements()
 {
 	local publicKeys=(
-		0xEF2E2223D08B38D4B51FFB9E7135A006B28E1285 # ProstoVPN
+		0xEF2E2223D08B38D4B51FFB9E7135A006B28E1285 # Default
 		0xA2AFF7EB363E6C8DD27655AD62CD962F89DDC0CD # My
 	)
 

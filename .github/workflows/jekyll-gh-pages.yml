@@ -29,23 +29,18 @@ jobs:
     steps:
       - 
         name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       -
-        name: Download image
-        working-directory: ./www
+        name: Download images
+        working-directory: ./www/images
         env:
           FTP_HOST: "${{ secrets.FTP_HOST }}"
           FTP_USER: ${{ secrets.FTP_USER }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
-          wget -q \
-               --ftp-user="$FTP_USER" \
-               --ftp-password="$FTP_PASSWORD" \
-               "${FTP_HOST}/SHA256SUMS" \
-               "${FTP_HOST}/SHA256SUMS.gpg" \
-               "${FTP_HOST}/rootfs.tar.xz" \
-               "${FTP_HOST}/rootfs.tar.xz.manifest"
-      - 
+            wget --ftp-user="$FTP_USER" --ftp-password="$FTP_PASSWORD" "${FTP_HOST}/default.tar.gz" -qO- | tar -xzf -
+            wget --ftp-user="$FTP_USER" --ftp-password="$FTP_PASSWORD" "${FTP_HOST}/custom.tar.gz" -qO- | tar -xzf -
+      -
         name: Setup Pages
         uses: actions/configure-pages@v5
       - 
@@ -56,7 +51,7 @@ jobs:
           destination: ./_site
       - 
         name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
       - 
         name: Deploy to GitHub Pages
         id: deployment
