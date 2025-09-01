@@ -2,7 +2,7 @@
 
 set -e
 
-url='https://kyzima-spb.github.io/antizapret/include-hosts-custom.txt'
+url='https://kyzima-spb.github.io/p2p-routing-container/include-hosts-custom.txt'
 hostsFile=${1:-'config/include-hosts-custom.txt'}
 tempFile="$(mktemp)"
 
