@@ -2,7 +2,11 @@
 
 [Distribution]
 Distribution=debian
-Release=buster
+#Release=buster
+Release=bookworm
+#Release=trixie
+#Mirror=http://archive.debian.org/debian
+#Mirror=http://archive.debian.org/debian-security
 
 [Output]
 Format=tar
@@ -11,12 +15,16 @@ Bootable=no
 
 [Validation]
 CheckSum=true
-Sign=true
-Key=62CD962F89DDC0CD
+#Sign=true
+#Key=62CD962F89DDC0CD
 
 [Packages]
 WithNetwork=true
 Packages=bash
+         easy-rsa
+         gettext-base
+         less
+         nftables
          python3-dnslib
          ipcalc
          sipcalc

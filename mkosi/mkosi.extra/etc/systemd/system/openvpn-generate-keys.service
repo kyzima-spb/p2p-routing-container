@@ -1,12 +1,12 @@
 [Unit]
-Description=antizapret-vpn generate keys
+Description=Generate OpenVPN server keys
 Before=openvpn.service openvpn-server@.service
 After=network-online.target
 Wants=network-online.target
 
 [Service]
-WorkingDirectory=/root/easy-rsa-ipsec/
-ExecStart=/root/easy-rsa-ipsec/generate.sh
+WorkingDirectory=/etc/easy-rsa/
+ExecStart=/usr/local/bin/generate-server-keys
 
 [Install]
 WantedBy=multi-user.target

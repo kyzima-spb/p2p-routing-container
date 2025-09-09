@@ -1,0 +1,39 @@
+# Переводит OpenVPN в режим клиента
+client
+
+# Имя сетевого интерфейса
+dev tun
+# Протокол для соединения с сервером.
+proto udp
+# Использовать случайный свободный порт для подключения
+nobind
+
+# Адрес и порт сервера OpenVPN
+remote ${REMOTE} ${REMOTE_PORT}
+# Бесконечно пытаться разрешить имя сервера
+resolv-retry infinite
+# Имя профиля на клиенте
+setenv FRIENDLY_NAME "${REMOTE}:${REMOTE_PORT} [${PROTO}]"
+
+# Не сбрасывать ключи аутентификации при переподключении
+persist-key
+# Не закрывать виртуальный интерфейс при переподключении
+persist-tun
+
+# Проверка - удаленный сертификат принадлежит серверу
+remote-cert-tls server
+
+#auth SHA512
+#cipher AES-256-CBC
+
+<ca>
+${CA_CERT}
+</ca>
+
+<cert>
+${CLIENT_CERT}
+</cert>
+
+<key>
+${CLIENT_KEY}
+</key>

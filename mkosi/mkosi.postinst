@@ -17,6 +17,13 @@ cd /root
 mv -f antizapret-process.sh antizapret/process.sh
 mv update.d antizapret
 
+# Copy the Easy-RSA utility
+cp -r /usr/share/easy-rsa /etc/
+chmod 700 /etc/easy-rsa
+
+# Create a directory to store user configurations
+mkdir -p /etc/openvpn/server/ccd
+
 # Clean package cache and remove the lists
 apt clean
 rm /var/lib/apt/lists/* || true
@@ -31,4 +38,4 @@ systemctl enable systemd-networkd \
                  kresd@1 \
                  antizapret-update.service antizapret-update.timer \
                  dnsmap openvpn-generate-keys \
-                 openvpn-server@antizapret openvpn-server@antizapret-tcp
+                 openvpn-server@server openvpn-server@server-tcp
