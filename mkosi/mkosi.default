@@ -1,12 +1,7 @@
-# Antizapret VPN system container
-
 [Distribution]
 Distribution=debian
-#Release=buster
 Release=bookworm
 #Release=trixie
-#Mirror=http://archive.debian.org/debian
-#Mirror=http://archive.debian.org/debian-security
 
 [Output]
 Format=tar
@@ -25,6 +20,7 @@ Packages=bash
          gettext-base
          less
          nftables
+         iproute2
          python3-dnslib
          ipcalc
          sipcalc

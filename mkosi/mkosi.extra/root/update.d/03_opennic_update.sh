@@ -7,7 +7,7 @@ confFile=${1:-'result/opennic.conf'}
 
 echo -n 'Update OpenNIC DNS servers...'
 
-echo 'opennic_hosts = {' > "$confFile"
+echo 'return {' > "$confFile"
 curl -s "$apiUrl" | fping | awk '$3 == "alive" {print "\"" $1 "\","}' >> "$confFile"
 echo '}' >> "$confFile"
 

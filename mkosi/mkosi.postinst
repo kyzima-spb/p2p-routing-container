@@ -4,12 +4,14 @@ set -e
 export DEBIAN_FRONTEND=noninteractive
 export APT_LISTCHANGES_FRONTEND=none
 
-# Add knot-resolver CZ.NIC repository. It's newer and less buggy than in Debian repos.
-cd /tmp
-curl -L https://secure.nic.cz/files/knot-resolver/knot-resolver-release.deb -o knot-resolver-release.deb
-apt-get install ./knot-resolver-release.deb
-apt-key del 74062DB36A1F4009
-wget -O- https://download.opensuse.org/repositories/home:/CZ-NIC:/knot-resolver-latest/Debian_10/Release.key | apt-key add -
+# Add knot-resolver CZ.NIC repository
+curl -L -o /usr/share/keyrings/cznic-labs-pkg.gpg https://pkg.labs.nic.cz/gpg
+echo "deb [signed-by=/usr/share/keyrings/cznic-labs-pkg.gpg] https://pkg.labs.nic.cz/knot-resolver bookworm main" | \
+     tee /etc/apt/sources.list.d/cznic-labs-knot-resolver.list
+
+# Create a directory to store user configurations for knot-resolver
+mkdir -p /etc/knot-resolver/kresd.conf.d
+
 apt-get update
 apt-get -o Dpkg::Options::="--force-confold" -y full-upgrade
 
@@ -21,7 +23,7 @@ mv update.d antizapret
 cp -r /usr/share/easy-rsa /etc/
 chmod 700 /etc/easy-rsa
 
-# Create a directory to store user configurations
+# Create a directory to store client configurations for OpenVPN
 mkdir -p /etc/openvpn/server/ccd
 
 # Clean package cache and remove the lists
