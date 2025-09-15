@@ -27,8 +27,6 @@ Packages=bash
          gawk
          gnupg
          idn
-         iptables
-         ferm
          openvpn
          knot-resolver
          inetutils-ping

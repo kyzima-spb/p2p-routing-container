@@ -1,17 +1,31 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
-from __future__ import print_function
-
-import binascii,socket,struct
-from collections import deque
-from ipaddress import IPv4Network
-
-from dnslib import DNSRecord,RCODE,QTYPE,A
-from dnslib.server import DNSServer,DNSHandler,BaseResolver,DNSLogger
+from collections import deque, UserDict
+import ipaddress
+import json
+import socket
+import struct
 import subprocess
-import shlex
-import sys
+
+from dnslib import DNSRecord, RCODE, QTYPE, A
+from dnslib.server import DNSServer, DNSHandler, BaseResolver, DNSLogger
+
+
+def nft_add_mapping(chain_name: str, fake_addr: str, real_addr: str) -> None:
+    subprocess.check_call([
+        'nft', 'add', 'element', 'inet', 'nat', chain_name,
+        '{ %s : %s }' % (fake_addr, real_addr),
+    ])
+
+
+def nft_load_dns_map(map_name: str):
+    output = subprocess.check_output([
+        'nft', '-j', 'list', 'map', 'inet', 'nat', map_name,
+    ])
+    output_dict = json.loads(output)
+    dns_map = [i for i in output_dict['nftables'] if 'map' in i].pop()
+    return dns_map['map']['elem']
+
 
 class ProxyResolver(BaseResolver):
     """
@@ -35,21 +49,18 @@ class ProxyResolver(BaseResolver):
 
     """
 
-    def __init__(self,address,port,timeout,iprange,tablename='dnsmap'):
+    def __init__(self, address, port, timeout, iprange, chain_name: str = 'dns_map'):
         self.address = address
         self.port = port
         self.timeout = timeout
-        self.unassigned_addresses = deque([str(x) for x in IPv4Network(iprange).hosts()])
+        self.unassigned_addresses = deque([str(x) for x in ipaddress.IPv4Network(iprange).hosts()])
         self.ipmap = {}
-        self.tablename = tablename
+
+        self.chain_name = chain_name
         
         # Load existing mappings
-        output = subprocess.check_output(["./get_iptables_mappings.sh"])
-        for mapped in output.decode().split("\n"):
-            if mapped:
-                fake_addr, real_addr = mapped.split(' ')
-                self.add_mapping(real_addr, fake_addr) or sys.exit(1)
-        #self.unassigned_addresses.remove()
+        for fake_ip, real_ip in nft_load_dns_map(chain_name):
+            self.add_mapping(real_ip, fake_ip) or sys.exit(1)
     
     def get_mapping(self, real_addr):
         return self.ipmap.get(real_addr)
@@ -76,13 +87,9 @@ class ProxyResolver(BaseResolver):
                 return False
             print('Mapping {} to {}'.format(fake_addr, real_addr))
             self.ipmap[real_addr]=fake_addr
-            subprocess.call(
-                ["./set_iptables.sh", real_addr, fake_addr]
-                )
+            nft_add_mapping(self.chain_name, fake_addr, real_addr)
             return fake_addr
         return True
-
-        
 
     def resolve(self,request,handler):
         try:
@@ -179,8 +186,8 @@ def send_udp(data,host,port):
     sock.close()
     return response
 
-if __name__ == '__main__':
 
+if __name__ == '__main__':
     import argparse,sys,time
 
     p = argparse.ArgumentParser(description="DNS Proxy")
