@@ -42,5 +42,4 @@ Packages=bash
          nano
          vim-tiny
          git
-         fping
          socat
