@@ -24,7 +24,7 @@ def nft_load_dns_map(map_name: str):
     ])
     output_dict = json.loads(output)
     dns_map = [i for i in output_dict['nftables'] if 'map' in i].pop()
-    return dns_map['map']['elem']
+    return dns_map['map'].get('elem', [])
 
 
 class ProxyResolver(BaseResolver):

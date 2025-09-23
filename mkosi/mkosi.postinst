@@ -15,10 +15,6 @@ mkdir -p /etc/knot-resolver/kresd.conf.d
 apt-get update
 apt-get -o Dpkg::Options::="--force-confold" -y full-upgrade
 
-cd /root
-mv -f antizapret-process.sh antizapret/process.sh
-mv update.d antizapret
-
 # Copy the Easy-RSA utility
 cp -r /usr/share/easy-rsa /etc/
 chmod 700 /etc/easy-rsa
@@ -38,6 +34,5 @@ mv /etc/resolv.conf_copy /etc/resolv.conf
 # Run all needed service on boot
 systemctl enable systemd-networkd \
                  kresd@1 \
-                 antizapret-update.service antizapret-update.timer \
                  dnsmap openvpn-generate-keys \
                  openvpn-server@server openvpn-server@server-tcp
