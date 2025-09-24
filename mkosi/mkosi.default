@@ -1,7 +1,6 @@
 [Distribution]
 Distribution=debian
-Release=bookworm
-#Release=trixie
+Release=trixie
 
 [Output]
 Format=tar
@@ -16,30 +15,20 @@ CheckSum=true
 [Packages]
 WithNetwork=true
 Packages=bash
+				 ca-certificates
+				 curl
+				 dnsutils
          easy-rsa
-         gettext-base
-         less
-         nftables
-         iproute2
-         python3-dnslib
-         ipcalc
-         sipcalc
          gawk
-         gnupg
-         idn
-         openvpn
-         knot-resolver
+         gettext-base
          inetutils-ping
-         curl
-         wget
-         ca-certificates
-         openssl
-         host
-         dnsutils
-         bsdmainutils
-         procps
-         unattended-upgrades
+         iproute2
+         knot-resolver
          nano
-         vim-tiny
-         git
+         nftables
+         openssl
+         openvpn
+         procps
+         python3-dnslib
          socat
+         unattended-upgrades
