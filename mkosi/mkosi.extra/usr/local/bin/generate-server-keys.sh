@@ -49,12 +49,3 @@ then
     cp -rp ./pki/{ca.crt,dh.pem,ta.key,crl.pem,issued/server.crt,private/server.key} \
            "$server_keys_dir"
 fi
-
-
-if [[ ! -f ./pki/issued/client.crt ]] && \
-   [[ ! -f ./pki/private/client.key ]] && \
-   [[ ! -f ./pki/reqs/client.req ]]
-then
-    echo 'Generate OpenVPN Client Certificates and Keys'
-    client-util generate client
-fi

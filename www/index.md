@@ -6,10 +6,14 @@ Router
 - [Introduction](#introduction)
   - [Non-standard Routing Method](#non-standard-routing-method)
 - [How to install a container?](#how-to-install-a-container)
+  - [Automatic installation](#automatic-installation)
+  - [Manual installation](#manual-installation)
 - [How to uninstall a container?](#how-to-uninstall-a-container)
 - [How to Choose the Right VPS?](#how-to-choose-the-right-vps)
   - [Minimum System Requirements for Choosing a VPS](#minimum-system-requirements-for-choosing-a-vps)
   - [What I Used and Can Recommend](#what-i-used-and-can-recommend)
+- [Commands for Working with Clients](#commands-for-working-with-clients)
+  - [How to create a client?](#how-to-create-a-client)
 
 ## Disclaimer
 
@@ -82,9 +86,98 @@ the hosting provider usually provides the server’s IP address, login, and pass
 All commands should be executed as the `root` user or with `sudo`.
 
 ### Automatic installation
+
+```shell
+# Installing the container with default parameters
+# The OpenVPN configuration file needs to be imported into the OpenVPN Connect application
+wget -qO- https://kyzima-spb.github.io/router/installer.sh | \
+  sudo bash -s -- --cn client > client.ovpn
+
+# You can set a password, in which case the configuration will be saved in a ZIP archive
+wget -qO- https://kyzima-spb.github.io/router/installer.sh | \
+  sudo bash -s -- --cn client --password 'very secret' > client.zip
+
+# You can specify your own name for the container
+wget -qO- https://kyzima-spb.github.io/router/installer.sh | \
+  sudo bash -s -- -n custom-router --cn client > client.ovpn
+
+# You can specify a domain or a fixed port
+wget -qO- https://kyzima-spb.github.io/router/installer.sh | \
+  sudo bash -s -- --cn client --remote example.com -p 1194 > client.ovpn
+
+# Or, if you need to use the TCP protocol
+wget -qO- https://kyzima-spb.github.io/router/installer.sh | \
+  sudo bash -s -- --cn client --proto tcp > client.ovpn
+
+# For more details, see the help for the install command
+wget -qO- https://kyzima-spb.github.io/router/installer.sh | \
+  sudo bash -s -- install -h
+```
+
+All configuration files, certificates, and keys can be copied from the server to your computer
+using FileZilla (Windows, macOS, Linux) or WinSCP (Windows only) over the **SFTP** protocol.
+
+If you haven’t changed the directory after logging in, by default it is the user’s home directory.
+For the root user, this is `/root`; for other users, it is `/home/<USERNAME>`.
+
+On Linux, you can archive all the files and download them from the server with the command:
+
+```shell
+whoami  # root
+pwd     # /root
+tar -czf /root/credentials.tar.gz <PATH_1> <PATH_2> <PATH_N>
+scp <USER>@<PUBLIC_IP>:/root/credentials.tar.gz <DEST_PATH>
+```
+
 ### Manual installation
 
+```shell
+apt update && apt install -y gnupg systemd-container
+
+gpg -k > /dev/null
+gpg \
+  --no-default-keyring \
+  --keyring /etc/systemd/import-pubring.gpg \
+  --keyserver hkps://keyserver.ubuntu.com \
+  --receive-keys 0xA2AFF7EB363E6C8DD27655AD62CD962F89DDC0CD
+
+machinectl pull-tar https://github.com/kyzima-spb/router/releases/download/v1.0/router.tar.xz
+mkdir -p /etc/systemd/nspawn
+tee /etc/systemd/nspawn/router.nspawn <<- EOF
+[Exec]
+NotifyReady=yes
+PrivateUsers=yes
+
+[Network]
+VirtualEthernet=yes
+Port=tcp:1194:1194
+Port=udp:1194:1194
+EOF
+
+systemctl enable --now systemd-networkd.service
+machinectl enable router
+machinectl start router
+
+# Wait for the VPN server configuration to be created
+systemd-run -q -M router --wait --pipe journalctl -u openvpn-generate-keys -f | \
+  grep -q 'Deactivated successfully.'
+```
+
 ## How to uninstall a container?
+
+To remove the container, the image, and all related files, run:
+
+```shell
+wget -qO- https://kyzima-spb.github.io/router/installer.sh | \
+  sudo bash -s -- uninstall
+```
+
+If a different name was specified during installation, run:
+
+```shell
+wget -qO- https://kyzima-spb.github.io/router/installer.sh | \
+  sudo bash -s -- uninstall -n custom-router
+```
 
 ## How to Choose the Right VPS?
 
@@ -143,6 +236,70 @@ everything else plays only a minor role and won’t significantly affect your se
   * **Account with a small balance was deleted without warning**
   * Tested on 21.02.2024 in USA, London, and Netherlands locations
   * Hourly billing
+
+## Commands for Working with Clients
+
+Client management for OpenVPN inside the container is handled by the `client-util` script.
+For more details, see the help documentation. Here are a few examples for common use cases.
+
+Commands can be executed inside the container:
+
+```shell
+# To login the container, use the command:
+machinectl shell <CONTAINER_NAME>
+# Inside the container, view the help for the command:
+client-util -h
+```
+
+Or from the host:
+
+```shell
+systemd-run -q --wait --pipe -M <CONTAINER_NAME> client-util -h
+```
+
+### How to create a client?
+
+To add a new client named `phone`, run the command:
+
+```shell
+systemd-run -q --wait --pipe -M <CONTAINER_NAME> client-util generate phone
+```
+
+To recreate the certificate and key for an existing client, use the `--revoke` argument.
+This will revoke the previously issued certificate and key:
+
+```shell
+systemd-run -q --wait --pipe -M <CONTAINER_NAME> client-util generate phone --revoke
+```
+
+Deleting a client is not supported, but you can revoke the certificate and key issued to them.
+To do this, run the command:
+
+```shell
+systemd-run -q --wait --pipe -M <CONTAINER_NAME> client-util revoke phone
+```
+
+To generate a configuration file for the OpenVPN Connect application, run the command:
+
+```shell
+systemd-run -q --wait --pipe -M <CONTAINER_NAME> client-util show phone > phone.ovpn
+```
+
+If the port was not explicitly specified during installation, a random available port will be used.
+Inside the container, this port is unknown, so when generating OVPN files,
+you need to explicitly specify the port:
+
+```shell
+VPN_PORT="$(grep '^Port=' /etc/systemd/nspawn/<CONTAINER_NAME>.nspawn | awk -F: '{print $2}' | head -1)"
+systemd-run -q --wait --pipe -M <CONTAINER_NAME> client-util show phone -p "$VPN_PORT" > phone.ovpn
+```
+
+
+For more details, see the help for the client-util:
+
+```shell
+systemd-run -q --wait --pipe -M <CONTAINER_NAME> client-util -h
+```
 
 ## About VPN Technology
 

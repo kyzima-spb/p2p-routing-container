@@ -4,7 +4,7 @@ Release=trixie
 
 [Output]
 Format=tar
-Output=rootfs.tar.xz
+Output=router.tar.xz
 Bootable=no
 
 [Validation]
