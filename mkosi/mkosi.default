@@ -9,8 +9,8 @@ Bootable=no
 
 [Validation]
 CheckSum=true
-#Sign=true
-#Key=62CD962F89DDC0CD
+Sign=true
+Key=62CD962F89DDC0CD
 
 [Packages]
 WithNetwork=true

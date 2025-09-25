@@ -1,0 +1,47 @@
+name: Build the systemd-nspawn image
+
+on:
+  push:
+    branches: [ master ]
+  release:
+    types: [ published ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-nspawn:
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v5
+      -
+        name: Install Dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends \
+            debootstrap \
+            python3 \
+            systemd-container
+          sudo pip3 install https://github.com/systemd/mkosi/archive/refs/tags/v14.zip
+      -
+        name: Import GPG key
+        run: echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+      -
+        name: Build Test Image
+        working-directory: ./mkosi
+        run: sudo -E mkosi build .
+      -
+        name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          path: ./mkosi/mkosi.output/debian~*
+      -
+        if: github.event_name == 'release' && github.event.action == 'published'
+        name: Attach a image to a release
+        working-directory: ./mkosi/mkosi.output
+        env:
+          GITHUB_TOKEN: ${{ github.TOKEN }}
+        run: |
+          gh release upload ${{github.event.release.tag_name}} ./debian~*/*
