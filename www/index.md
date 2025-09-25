@@ -14,6 +14,7 @@ Router
   - [What I Used and Can Recommend](#what-i-used-and-can-recommend)
 - [Commands for Working with Clients](#commands-for-working-with-clients)
   - [How to create a client?](#how-to-create-a-client)
+- [How to Add a Domain to the List?](#how-to-add-a-domain-to-the-list)
 
 ## Disclaimer
 
@@ -294,11 +295,85 @@ VPN_PORT="$(grep '^Port=' /etc/systemd/nspawn/<CONTAINER_NAME>.nspawn | awk -F: 
 systemd-run -q --wait --pipe -M <CONTAINER_NAME> client-util show phone -p "$VPN_PORT" > phone.ovpn
 ```
 
-
 For more details, see the help for the client-util:
 
 ```shell
 systemd-run -q --wait --pipe -M <CONTAINER_NAME> client-util -h
+```
+
+## How to Add a Domain to the List?
+
+Create a configuration file with the `.conf` extension in the `/etc/knot-resolver/kresd.conf.d` directory.
+A number and a hyphen at the beginning of the filename indicate its priority.
+Add the domains or zone you need to the file, then restart Knot Resolver:
+
+```shell
+tee /etc/knot-resolver/kresd.conf.d/10-ai.conf <<- EOF
+local ai_domains = policy.todnames({
+    'chatgpt.com.', 'openai.com.', 'recraft.ai.'
+})
+policy.add(
+    policy.suffix(
+        policy.STUB({'127.0.0.4'}),
+        ai_domains
+    )
+)
+EOF
+systemctl restart kresd@1
+```
+
+To verify inside the container, run the `dig` command for a domain from the list.
+You should see an IP address from the internal network:
+
+```shell
+machinectl shell <CONTAINER_NAME>
+dig @127.0.0.1 chatgpt.com  # 10.224.0.N
+```
+
+Another example: adding alternative domain zones from the OpenNIC project
+(DNS server IP addresses are provided for illustration purposes):
+
+```shell
+tee /etc/knot-resolver/kresd.conf.d/05-opennic.conf <<- EOF
+local opennic_dns = {
+    '94.247.43.254',
+    '194.36.144.87',
+    '217.160.70.42',
+}
+local opennic_domains = policy.todnames({
+    'bbs.', 'chan.', 'cyb.', 'dyn.', 'geek.', 'gopher.',
+    'indy.', 'libre.', 'neo.', 'null.', 'o.', 'oss.', 'oz.',
+    'parody.', 'pirate.', 'free.', 'bazar.', 'coin.',
+    'emc.', 'lib.', 'fur.', 'bit.', 'ku.', 'te.', 'ti.', 'uu.',
+})
+policy.add(
+    policy.suffix(policy.STUB(opennic_dns), opennic_domains)
+)
+EOF
+systemctl restart kresd@1
+
+machinectl shell <CONTAINER_NAME>
+dig @127.0.0.1 grep.geek  # 161.97.219.84
+```
+
+If there is a web server within your local network, you can create your own local domain:
+
+```shell
+tee /etc/knot-resolver/kresd.conf.d/01-zone-loc.conf <<- EOF
+policy.add(
+    policy.suffix(
+        policy.ANSWER(
+            { [kres.type.A] = { rdata=kres.str2ip('192.168.88.10'), ttl=300 } }
+        ),
+        { todname('loc.') }
+    )
+)
+EOF
+systemctl restart kresd@1
+
+machinectl shell <CONTAINER_NAME>
+dig @127.0.0.1 site.loc  # 192.168.88.10
+dig @127.0.0.1 test.loc  # 192.168.88.10
 ```
 
 ## About VPN Technology
