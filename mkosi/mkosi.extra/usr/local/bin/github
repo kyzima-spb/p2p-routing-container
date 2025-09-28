@@ -1,0 +1,204 @@
+#!/usr/bin/env bash
+set -e
+
+
+die() {
+  echo >&2 "$1"
+  exit 1
+}
+
+
+get_file_sha() {
+  local token="$1"
+  local path="$2"
+  curl -Ls \
+       -H "Accept: application/vnd.github+json" \
+       -H "Authorization: Bearer $token" \
+       -H "X-GitHub-Api-Version: 2022-11-28" \
+       "https://api.github.com/repos/kyzima-spb/router-backup/contents/$path" | jq -r '.sha // ""'
+}
+
+
+delete_remote_file() {
+  local token="$1"
+  local path="$2"
+  local message="${3:-File $path removed}"
+  curl -LsSf --fail-early \
+       -X DELETE \
+       -H "Accept: application/vnd.github+json" \
+       -H "Authorization: Bearer $token" \
+       -H "X-GitHub-Api-Version: 2022-11-28" \
+       -d "{\"message\":\"$message\",\"sha\":\"$(get_file_sha "$token" "$path")\"" \
+       "https://api.github.com/repos/kyzima-spb/router-backup/contents/$path" >/dev/null
+  echo 'OK'
+}
+
+
+read_remote_file() {
+  local token="$1"
+  local path="$2"
+  curl -LsSf --fail-early \
+       -H "Accept: application/vnd.github.v3.raw" \
+       -H "Authorization: Bearer $token" \
+       -H "X-GitHub-Api-Version: 2022-11-28" \
+       "https://api.github.com/repos/kyzima-spb/router-backup/contents/$path"
+}
+
+
+write_remote_file() {
+  local token="$1"
+  local path="$2"
+  local message="${3:-Create file $path}"
+  local content
+  local sha
+
+  content="$(base64 -w 0)"
+  sha=$(get_file_sha "$token" "$path")
+
+  [[ -z "$sha" ]] || message="${3:-Changed file $path}"
+
+  curl -LsSf --fail-early \
+       -X PUT \
+       -H "Accept: application/vnd.github+json" \
+       -H "Authorization: Bearer $token" \
+       -H "X-GitHub-Api-Version: 2022-11-28" \
+       -d "{\"message\":\"$message\",\"sha\":\"$sha\",\"content\":\"$content\"}" \
+       "https://api.github.com/repos/kyzima-spb/router-backup/contents/$path" >/dev/null
+
+  echo 'OK'
+}
+
+
+usage() {
+	case "$1" in
+		deletefile)
+			cat 1>&2 <<-ENDOFUSAGE
+
+			Deletes a file in a repository
+
+			Usage: $(basename "$0") $1 [OPTIONS]"
+
+			Options:
+			  -m --message STRING   The commit message
+
+			ENDOFUSAGE
+			;;
+		readfile)
+			cat 1>&2 <<-ENDOFUSAGE
+
+			Gets the contents of a file or directory in a repository
+
+			Usage: $(basename "$0") $1 [OPTIONS]"
+
+			ENDOFUSAGE
+			;;
+		writefile)
+			cat 1>&2 <<-ENDOFUSAGE
+
+			Creates a new file or replaces an existing file in a repository
+
+			Usage: $(basename "$0") $1 [OPTIONS]" < INPUT_FILE
+
+			Options:
+			  -m --message STRING   The commit message
+
+			ENDOFUSAGE
+			;;
+		*)
+			cat 1>&2 <<-ENDOFUSAGE
+
+			Utility to create, modify, and delete Base64 encoded content in a GitHub repository.
+
+			Usage: $(basename "$0") COMMAND [OPTIONS]
+
+			Commands:
+			  deletefile    Deletes a file in a repository
+			  readfile      Gets the contents of a file or directory in a repository
+			  writefile     Creates a new file or replaces an existing file in a repository
+
+			Options:
+			  -h --help     Show general help
+			  --path        File name in the repository
+			  --token       Path to file with the GitHub access token
+			                Default $HOME/.github_token
+
+			ENDOFUSAGE
+			;;
+	esac
+}
+
+
+main() {
+  local cmd
+
+  case "$1" in
+	  -h|--help)
+	    usage
+	    exit 0
+	    ;;
+	  deletefile|readfile|writefile)
+      cmd="$1"
+	    shift
+	    ;;
+	  *)
+	    echo >&2 "Unknown command: $1"
+      usage
+      exit 1
+	    ;;
+	esac
+
+	declare -A options_map=(
+    [--path]="path"
+    [--token]="token"
+  )
+  declare -A flags_map=()
+
+  case "$cmd" in
+    deletefile|writefile)
+      options_map+=(
+        [-m]="message"
+        [--message]="message"
+      )
+      ;;
+  esac
+
+  declare -A cli_ars=(
+    [token]="$HOME/.github_token"
+  )
+
+  while [[ "$#" -gt 0 ]]
+  do
+    case "$1" in
+      -h|--help)
+        usage "$cmd"
+        exit 0
+        ;;
+      *)
+        if [[ -v "options_map[$1]" ]]; then
+          cli_ars["${options_map[$1]}"]="$2"
+          shift 2
+        elif [[ -v "flags_map[$1]" ]]; then
+          cli_ars["${flags_map[$1]}"]=true
+          shift 1
+        else
+          echo >&2 "Error: Unknown option $1"
+          usage "$cmd"
+          exit 1
+        fi
+        ;;
+    esac
+  done
+
+  [[ -n "${cli_ars[path]}" ]] || die 'Required argument: --path'
+  [[ -f "${cli_ars[token]}" ]] || die 'Required argument: --token'
+
+  local -r token="$(<"${cli_ars[token]}")"
+
+  case "$cmd" in
+    deletefile) delete_remote_file "$token" "${cli_ars[path]}" "${cli_ars[message]}" ;;
+    readfile) read_remote_file "$token" "${cli_ars[path]}" ;;
+    writefile) write_remote_file "$token" "${cli_ars[path]}" "${cli_ars[message]}" ;;
+  esac
+}
+
+main "$@"

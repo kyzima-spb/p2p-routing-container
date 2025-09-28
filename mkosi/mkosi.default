@@ -23,6 +23,7 @@ Packages=bash
          gettext-base
          inetutils-ping
          iproute2
+         jq
          knot-resolver
          nano
          nftables
