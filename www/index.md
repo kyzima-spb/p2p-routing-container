@@ -13,6 +13,7 @@ Router
 - [Commands for Working with Clients](#commands-for-working-with-clients)
   - [How to create a client?](#how-to-create-a-client)
 - [How to Add a Domain to the List?](#how-to-add-a-domain-to-the-list)
+- [User Data Backup](#user-data-backup)
 
 ## Disclaimer
 
@@ -372,6 +373,40 @@ systemctl restart kresd@1
 machinectl shell <CONTAINER_NAME>
 dig @127.0.0.1 site.loc  # 192.168.88.10
 dig @127.0.0.1 test.loc  # 192.168.88.10
+```
+
+## User Data Backup
+
+The container includes the `router-backup` service, which runs once a day and performs backups of user data.
+A full backup is created once a week, while incremental backups are made on the other days.
+The container does not keep backups older than 30 days.
+
+You can customize any parameters to your preference:
+service run interval, full backup frequency, and backup retention period:
+
+```shell
+router-backup --help
+```
+
+Edit the file `/usr/local/bin/router-backup` to add files to be saved
+and configure the strategy for uploading backups to external storage:
+
+```shell
+# file: /usr/local/bin/router-backup
+
+backup_paths=(
+    'etc/easy-rsa'
+    'etc/knot-resolver/kresd.conf.d'
+    'etc/openvpn/server'
+    # add your custom paths here
+)
+
+
+user_handler() {
+    local path="$1"
+    echo "Backup file stores as $path"
+    # add your backup file upload strategy here
+}
 ```
 
 ## About VPN Technology

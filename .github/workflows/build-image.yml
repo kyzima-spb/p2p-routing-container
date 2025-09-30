@@ -2,7 +2,7 @@ name: Build the systemd-nspawn image
 
 on:
   push:
-    branches: [ master ]
+    branches: [ dev-master ]
   release:
     types: [ published ]
   workflow_dispatch:

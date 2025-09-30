@@ -164,7 +164,7 @@ usage() {
 
 			Stops and uninstall a systemd-nspawn container with given name
 
-			Usage: $(basename "$0") $1 [OPTIONS]"
+			Usage: $(basename "$0") $1 [OPTIONS]
 
 			Options:
 			  -n --name STRING      Container name (used by machinectl and .nspawn config file)

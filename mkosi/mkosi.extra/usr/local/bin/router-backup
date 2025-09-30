@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+set -e
+
+
+backup_paths=(
+    'etc/easy-rsa'
+    'etc/knot-resolver/kresd.conf.d'
+    'etc/openvpn/server'
+)
+
+
+user_handler() {
+    local path="$1"
+    echo "Backup file stores as $path"
+}
+
+
+usage() {
+		cat 1>&2 <<-ENDOFUSAGE
+
+		A simple script for creating backups of the container’s user data.
+
+		Usage: $(basename "$0") [OPTIONS]
+
+		Options:
+		  -d --backup-dir         Directory for storing local backups, default - /srv/backups
+		  -g --snar-file          The name of a snapshot file, default - .snapshot
+		  --full-backup-interval  Full backup interval in days, default - 7
+		  --retention-days        Number of days to keep backups, default - 30
+		  -v --verbose            More detailed output
+
+		ENDOFUSAGE
+}
+
+
+declare -A options_map=(
+    [-d]="backup_dir"
+    [--backup-dir]="backup_dir"
+    [-g]="snar_file"
+    [--snar-file]="snar_file"
+    [--full-backup-interval]="full_backup_interval"
+    [--retention-days]="retention_days"
+)
+declare -A flags_map=(
+    [-v]="verbose"
+    [--verbose]="verbose"
+)
+declare -A cli_options=()
+
+while [[ "$#" -gt 0 ]]
+do
+    case "$1" in
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+        if [[ -v "options_map[$1]" ]]; then
+            cli_options["${options_map[$1]}"]="$2"
+            shift 2
+        elif [[ -v "flags_map[$1]" ]]; then
+            cli_options["${flags_map[$1]}"]=true
+            shift 1
+        else
+            echo >&2 "Error: Unknown option $1"
+            usage
+            exit 1
+        fi
+        ;;
+    esac
+done
+
+
+backup_dir="${cli_options[backup_dir]:-/srv/backups}"
+snar_file="$backup_dir/${cli_options[snar_file]:-.snapshot}"
+full_backup_interval="${cli_options[full_backup_interval]:-7}"
+retention_days="${cli_options[retention_days]:-30}"
+verbose="${cli_options[verbose]:-false}"
+
+
+if $verbose
+then
+    echo "* Backups stored directory:      $backup_dir"
+    echo "* Snapshot file name:            $snar_file"
+    echo "* Full backup creation interval: $full_backup_interval days"
+    echo "* Backup retention period:       $retention_days days"
+fi
+
+
+if [[ -z "$(find "$backup_dir" -maxdepth 1 -name 'backup-*-full.tar.xz' -type f -mtime -"$((full_backup_interval - 1))")" ]]
+then
+    echo 'Create full backup'
+    rm -f "$snar_file"
+    suffix='full'
+else
+    echo 'Create incremental backup'
+    suffix='incremental'
+fi
+
+path="$backup_dir/backup-$(date +%Y%m%d_%H%M%S)-$suffix.tar.xz"
+tar -cJf "$path" -g "$snar_file" --ignore-failed-read -C / "${backup_paths[@]}"
+user_handler "$path"
+
+
+older_backups="$(find "$backup_dir" -maxdepth 1 -name 'backup-*.tar.xz' -type f -mtime +"$retention_days" | sort -r)"
+
+if find "$backup_dir" -maxdepth 1 -name 'backup-*.tar.xz' -type f -mtime -"$retention_days" | sort | head -n1 | grep incremental >/dev/null
+then
+    older_backups="$(echo "$older_backups" | sed '0,/full/d')"
+fi
+
+if [[ -n "$older_backups" ]]
+then
+    echo "Backups older than $retention_days days removed:"
+    echo "$older_backups" | xargs rm -v
+fi
+
+
+exit 0

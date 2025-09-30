@@ -1,0 +1,9 @@
+[Unit]
+Description=Run a backup of user data once a day
+
+[Timer]
+OnActiveSec=1d
+OnUnitActiveSec=1d
+
+[Install]
+WantedBy=timers.target

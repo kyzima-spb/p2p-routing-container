@@ -12,6 +12,9 @@ echo "deb [signed-by=/usr/share/keyrings/cznic-labs-pkg.gpg] https://pkg.labs.ni
 # Create a directory to store user configurations for knot-resolver
 mkdir -p /etc/knot-resolver/kresd.conf.d
 
+# Create a directory to store user data backups
+mkdir -p /srv/backups
+
 apt-get update
 apt-get -o Dpkg::Options::="--force-confold" -y full-upgrade
 

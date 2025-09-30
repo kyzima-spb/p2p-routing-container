@@ -1,0 +1,11 @@
+[Unit]
+Description=Backup of User Data
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/srv/backups
+ExecStart=/usr/local/bin/router-backup -v
+
+[Install]
+WantedBy=multi-user.target
