@@ -6,7 +6,7 @@ export APT_LISTCHANGES_FRONTEND=none
 
 # Add knot-resolver CZ.NIC repository
 curl -L -o /usr/share/keyrings/cznic-labs-pkg.gpg https://pkg.labs.nic.cz/gpg
-echo "deb [signed-by=/usr/share/keyrings/cznic-labs-pkg.gpg] https://pkg.labs.nic.cz/knot-resolver bookworm main" | \
+echo "deb [signed-by=/usr/share/keyrings/cznic-labs-pkg.gpg] https://pkg.labs.nic.cz/knot-resolver $(. /etc/os-release && echo "$VERSION_CODENAME") main" | \
      tee /etc/apt/sources.list.d/cznic-labs-knot-resolver.list
 
 # Create a directory to store user configurations for knot-resolver
