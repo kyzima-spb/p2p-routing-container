@@ -10,60 +10,68 @@ die() {
 
 get_file_sha() {
   local token="$1"
-  local path="$2"
+  local lookup="$2"
+  local path="$3"
+  local branch="$4"
   curl -Ls \
        -H "Accept: application/vnd.github+json" \
        -H "Authorization: Bearer $token" \
        -H "X-GitHub-Api-Version: 2022-11-28" \
-       "https://api.github.com/repos/kyzima-spb/router-backup/contents/$path" | jq -r '.sha // ""'
+       "https://api.github.com/repos/${lookup}/contents/${path}?ref=$branch" | jq -r '.sha // ""'
 }
 
 
 delete_remote_file() {
   local token="$1"
-  local path="$2"
-  local message="${3:-File $path removed}"
+  local lookup="$2"
+  local path="$3"
+  local message="${4:-File $path removed}"
+  local branch="$5"
   curl -LsSf --fail-early \
        -X DELETE \
        -H "Accept: application/vnd.github+json" \
        -H "Authorization: Bearer $token" \
        -H "X-GitHub-Api-Version: 2022-11-28" \
-       -d "{\"message\":\"$message\",\"sha\":\"$(get_file_sha "$token" "$path")\"" \
-       "https://api.github.com/repos/kyzima-spb/router-backup/contents/$path" >/dev/null
+       -d "{\"message\":\"$message\",\"sha\":\"$(get_file_sha "$token" "$lookup" "$path" "$branch")\",\"branch\":\"$branch\"}" \
+       "https://api.github.com/repos/${lookup}/contents/${path}" >/dev/null
   echo 'OK'
 }
 
 
 read_remote_file() {
   local token="$1"
-  local path="$2"
+  local lookup="$2"
+  local path="$3"
+  local branch="$4"
   curl -LsSf --fail-early \
        -H "Accept: application/vnd.github.v3.raw" \
        -H "Authorization: Bearer $token" \
        -H "X-GitHub-Api-Version: 2022-11-28" \
-       "https://api.github.com/repos/kyzima-spb/router-backup/contents/$path"
+       "https://api.github.com/repos/${lookup}/contents/${path}?ref=$branch"
 }
 
 
 write_remote_file() {
   local token="$1"
-  local path="$2"
-  local message="${3:-Create file $path}"
+  local lookup="$2"
+  local path="$3"
+  local message="${4:-Create file $path}"
+  local branch="$5"
   local content
   local sha
 
   content="$(base64 -w 0)"
-  sha=$(get_file_sha "$token" "$path")
+  sha=$(get_file_sha "$token" "$lookup" "$path" "$branch")
 
-  [[ -z "$sha" ]] || message="${3:-Changed file $path}"
+  [[ -z "$sha" ]] || message="${4:-Changed file $path}"
 
   curl -LsSf --fail-early \
        -X PUT \
        -H "Accept: application/vnd.github+json" \
        -H "Authorization: Bearer $token" \
        -H "X-GitHub-Api-Version: 2022-11-28" \
-       -d "{\"message\":\"$message\",\"sha\":\"$sha\",\"content\":\"$content\"}" \
-       "https://api.github.com/repos/kyzima-spb/router-backup/contents/$path" >/dev/null
+       -d "{\"message\":\"$message\",\"sha\":\"$sha\",\"content\":\"$content\",\"branch\":\"$branch\"}" \
+       "https://api.github.com/repos/${lookup}/contents/${path}" >/dev/null
 
   echo 'OK'
 }
@@ -76,7 +84,7 @@ usage() {
 
 			Deletes a file in a repository
 
-			Usage: $(basename "$0") $1 [OPTIONS]"
+			Usage: $(basename "$0") $1 [OPTIONS]
 
 			Options:
 			  -m --message STRING   The commit message
@@ -88,7 +96,7 @@ usage() {
 
 			Gets the contents of a file or directory in a repository
 
-			Usage: $(basename "$0") $1 [OPTIONS]"
+			Usage: $(basename "$0") $1 [OPTIONS]
 
 			ENDOFUSAGE
 			;;
@@ -109,18 +117,23 @@ usage() {
 
 			Utility to create, modify, and delete Base64 encoded content in a GitHub repository.
 
-			Usage: $(basename "$0") COMMAND [OPTIONS]
+			Usage: $(basename "$0") COMMAND user/repo/path [OPTIONS]
 
 			Commands:
 			  deletefile    Deletes a file in a repository
 			  readfile      Gets the contents of a file or directory in a repository
 			  writefile     Creates a new file or replaces an existing file in a repository
 
+			Positional:
+			  user          The account owner of the repository. The name is not case sensitive
+			  repo          The name of the repository without the .git extension. The name is not case sensitive
+			  path          The file name in the repository
+
 			Options:
+			  -b --branch   The name of the commit/branch/tag, default - the repository’s default branch
 			  -h --help     Show general help
-			  --path        File name in the repository
 			  --token       Path to file with the GitHub access token
-			                Default $HOME/.github_token
+			                Default $HOME/.github_token or /root/.github_token
 
 			ENDOFUSAGE
 			;;
@@ -129,75 +142,65 @@ usage() {
 
 
 main() {
-  local cmd
+  local name value show_help=false
 
-  case "$1" in
-	  -h|--help)
-	    usage
-	    exit 0
-	    ;;
-	  deletefile|readfile|writefile)
-      cmd="$1"
-	    shift
-	    ;;
-	  *)
-	    echo >&2 "Unknown command: $1"
-      usage
-      exit 1
-	    ;;
-	esac
-
-	declare -A options_map=(
-    [--path]="path"
-    [--token]="token"
+  declare cli_positional=()
+  declare -A cli_options=(
+    [token]="${HOME:-/root}/.github_token"
   )
-  declare -A flags_map=()
-
-  case "$cmd" in
-    deletefile|writefile)
-      options_map+=(
-        [-m]="message"
-        [--message]="message"
-      )
-      ;;
-  esac
-
-  declare -A cli_ars=(
-    [token]="$HOME/.github_token"
+  declare -A options_map=(
+    [-b]="branch"
+    [--branch]="branch"
+    [-m]="message"
+    [--message]="message"
+    [--token]="token"
   )
 
   while [[ "$#" -gt 0 ]]
   do
     case "$1" in
       -h|--help)
-        usage "$cmd"
-        exit 0
+        show_help=true
+        ;;
+      -*)
+        IFS='=' read -r name value <<< "$1"
+        [[ -v "options_map[$name]" ]] || die "Error: Unknown option $1"
+        [[ "$1" == *"="* ]] && cli_options["${options_map[$name]}"]=$value || cli_options["${options_map[$name]}"]=true
         ;;
       *)
-        if [[ -v "options_map[$1]" ]]; then
-          cli_ars["${options_map[$1]}"]="$2"
-          shift 2
-        elif [[ -v "flags_map[$1]" ]]; then
-          cli_ars["${flags_map[$1]}"]=true
-          shift 1
-        else
-          echo >&2 "Error: Unknown option $1"
-          usage "$cmd"
-          exit 1
-        fi
+        cli_positional+=("$1")
         ;;
     esac
+    shift
   done
 
-  [[ -n "${cli_ars[path]}" ]] || die 'Required argument: --path'
-  [[ -f "${cli_ars[token]}" ]] || die 'Required argument: --token'
+  local cmd="${cli_positional[0]}"
 
-  local -r token="$(<"${cli_ars[token]}")"
+  if $show_help
+  then
+      usage "$cmd"
+      exit 0
+  fi
+
+  if [[ "${#cli_positional[*]}" -lt 2 ]]
+  then
+      usage "$cmd"
+      exit 1
+  fi
+
+  local user repo path
+  IFS='/' read -r user repo path <<< "${cli_positional[1]}"
+
+  [[ -n "$user" && -n "$repo" ]] || die 'Required positional argument: user/repo/path'
+  [[ -n "$path" ]] || die 'Required positional argument: user/repo/path'
+  [[ -f "${cli_options[token]}" ]] || die 'Required argument: --token'
+
+  local -r token="$(<"${cli_options[token]}")"
 
   case "$cmd" in
-    deletefile) delete_remote_file "$token" "${cli_ars[path]}" "${cli_ars[message]}" ;;
-    readfile) read_remote_file "$token" "${cli_ars[path]}" ;;
-    writefile) write_remote_file "$token" "${cli_ars[path]}" "${cli_ars[message]}" ;;
+    deletefile) delete_remote_file "$token" "${user}/${repo}" "$path" "${cli_options[message]}" "${cli_options[branch]}" ;;
+    readfile) read_remote_file "$token" "${user}/${repo}" "$path" "${cli_options[branch]}" ;;
+    writefile) write_remote_file "$token" "${user}/${repo}" "$path" "${cli_options[message]}" "${cli_options[branch]}" ;;
   esac
 }
 
