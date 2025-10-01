@@ -35,7 +35,4 @@ umount /etc/resolv.conf || true
 mv /etc/resolv.conf_copy /etc/resolv.conf
 
 # Run all needed service on boot
-systemctl enable systemd-networkd \
-                 kresd@1 \
-                 dnsmap openvpn-generate-keys \
-                 openvpn-server@server openvpn-server@server-tcp
+systemctl enable kresd@1 openvpn-server@server openvpn-server@server-tcp

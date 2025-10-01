@@ -409,6 +409,12 @@ user_handler() {
 }
 ```
 
+Now you can enable and start the timer:
+
+```shell
+systemctl enable --now router-backup.timer
+```
+
 ## About VPN Technology
 
 Since March 2022, `%username%` learned a new word and, as is typical, gave it a new meaning -
