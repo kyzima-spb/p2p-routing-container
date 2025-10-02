@@ -62,7 +62,7 @@ install_requirements() {
 install() {
   declare -n kwargs=$1
 	local name="${kwargs[name]}"
-	local image="${kwargs[image]:-https://github.com/kyzima-spb/router/releases/download/v1.0/router.tar.xz}"
+	local image="${kwargs[image]:-https://github.com/kyzima-spb/router/releases/download/v1.1/router.tar.xz}"
 	local port="${kwargs[port]:-$(get_free_port)}"
 	local public_key="${kwargs[public_key]:-0xA2AFF7EB363E6C8DD27655AD62CD962F89DDC0CD}"
 
@@ -143,7 +143,7 @@ usage() {
 
 			Install and start a systemd-nspawn container with given image
 
-			Usage: $(basename "$0") $1 [OPTIONS]"
+			Usage: $(basename "$0") $1 [OPTIONS]
 
 			Options:
 			  --cn --client         CN (name) of the client
