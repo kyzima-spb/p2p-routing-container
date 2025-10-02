@@ -36,3 +36,6 @@ mv /etc/resolv.conf_copy /etc/resolv.conf
 
 # Run all needed service on boot
 systemctl enable kresd@1 openvpn-server@server openvpn-server@server-tcp
+
+# Add aliases
+echo -e "\nalias dns-cache-clear='echo \"cache.clear()\" | socat - /run/knot-resolver/control/1'" >> /etc/bash.bashrc
